@@ -1,6 +1,6 @@
+import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import path from 'path';
 import {
     DownloadResult,
     DownloadOptions,
@@ -33,7 +33,7 @@ export class InstagramDownloader {
     async getMetadata(url: string): Promise<VideoMetadata> {
         try {
             const command = `python -m yt_dlp --dump-json --no-warnings "${url}"`;
-            const { stdout } = await execAsync(command);
+            const { stdout } = await execAsync(command, { maxBuffer: 10 * 1024 * 1024 });
             const info = JSON.parse(stdout);
 
             return {
@@ -93,10 +93,13 @@ export class InstagramDownloader {
                 // yt-dlp 명령어 실행 (Instagram은 단순 best 포맷 사용)
                 const command = `python -m yt_dlp --format "best[ext=mp4]/best" -o "${outputTemplate}.%(ext)s" --no-playlist --no-warnings "${url}"`;
 
-                console.log('Instagram 다운로드 명령어:', command);
-                const { stdout, stderr } = await execAsync(command);
-                console.log('yt-dlp stdout:', stdout);
-                if (stderr) console.log('yt-dlp stderr:', stderr);
+                console.log('Instagram 다운로드 시작:', url);
+                const { stdout, stderr } = await execAsync(command, { maxBuffer: 50 * 1024 * 1024 });
+                
+                if (stdout) console.log('yt-dlp 출력:', stdout);
+                if (stderr) console.log('yt-dlp 경고:', stderr);
+                
+                console.log('다운로드 완료:', outputPath);
 
                 // 다운로드 완료 후 파일 크기 확인
                 const fileSize = await getFileSize(outputPath);

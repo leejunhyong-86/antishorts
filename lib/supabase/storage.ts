@@ -23,7 +23,7 @@ export class StorageManager {
 
             if (!bucketExists) {
                 const { error } = await supabase.storage.createBucket(this.bucketName, {
-                    public: false,
+                    public: true, // 비디오 재생을 위해 public 설정
                     fileSizeLimit: 524288000, // 500MB
                 });
 

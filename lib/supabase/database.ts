@@ -4,14 +4,16 @@ import type { Video, VideoInsert, VideoUpdate } from './client';
 
 /**
  * 비디오 데이터베이스 작업 클래스
+ * 서버 사이드: supabaseAdmin 사용 (쓰기 작업)
+ * 클라이언트 사이드: supabase 사용 (읽기 작업)
  */
 export class VideoDatabase {
     /**
-     * 새 비디오 추가
+     * 새 비디오 추가 (서버 사이드 전용)
      */
     async addVideo(video: VideoInsert): Promise<Video | null> {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseAdmin
                 .from('videos')
                 .insert(video)
                 .select()
@@ -149,11 +151,11 @@ export class VideoDatabase {
     }
 
     /**
-     * 비디오 업데이트
+     * 비디오 업데이트 (서버 사이드 전용)
      */
     async updateVideo(id: string, updates: VideoUpdate): Promise<Video | null> {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseAdmin
                 .from('videos')
                 .update(updates)
                 .eq('id', id)
@@ -173,11 +175,11 @@ export class VideoDatabase {
     }
 
     /**
-     * 비디오 삭제
+     * 비디오 삭제 (서버 사이드 전용)
      */
     async deleteVideo(id: string): Promise<boolean> {
         try {
-            const { error } = await supabase
+            const { error } = await supabaseAdmin
                 .from('videos')
                 .delete()
                 .eq('id', id);
