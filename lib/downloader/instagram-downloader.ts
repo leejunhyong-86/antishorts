@@ -1,19 +1,24 @@
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import path from 'path';
 import {
     DownloadResult,
     DownloadOptions,
-    VideoMetadata
+    VideoMetadata,
 } from './types';
 import {
     generateUniqueFileName,
-    ensureDir
+    ensureDir,
+    getFileSize,
 } from './file-utils';
 
+const execAsync = promisify(exec);
+
 /**
- * Instagram 다운로더 클래스
+ * Instagram 다운로더 클래스 (Python yt-dlp 사용)
  * 
  * 참고: Instagram은 공식 API에서 Reels 다운로드를 지원하지 않습니다.
- * 현재는 yt-dlp를 사용하여 다운로드를 시도합니다.
+ * yt-dlp를 사용하여 다운로드를 시도하지만, Instagram의 정책 변경에 따라 작동하지 않을 수 있습니다.
  */
 export class InstagramDownloader {
     private defaultOutputDir: string;
@@ -24,27 +29,30 @@ export class InstagramDownloader {
 
     /**
      * 비디오 메타데이터 추출
-     * 
-     * 참고: Instagram API 제한으로 인해 제한적인 정보만 제공됩니다.
      */
     async getMetadata(url: string): Promise<VideoMetadata> {
-        // Instagram Reel ID 추출
-        const reelIdMatch = url.match(/\/reel\/([a-zA-Z0-9_-]+)/);
-        const postIdMatch = url.match(/\/p\/([a-zA-Z0-9_-]+)/);
-        const videoId = reelIdMatch?.[1] || postIdMatch?.[1] || 'unknown';
+        try {
+            const command = `python -m yt_dlp --dump-json --no-warnings "${url}"`;
+            const { stdout } = await execAsync(command);
+            const info = JSON.parse(stdout);
 
-        return {
-            title: `Instagram_Reel_${videoId}`,
-            videoId,
-            platform: 'instagram',
-        };
+            return {
+                title: info.title || `Instagram_Reel_${info.id}`,
+                description: info.description,
+                uploader: info.uploader || info.uploader_id,
+                uploadDate: info.upload_date,
+                duration: info.duration,
+                thumbnailUrl: info.thumbnail,
+                videoId: info.id,
+                platform: 'instagram',
+            };
+        } catch (error) {
+            throw new Error(`메타데이터 추출 실패: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
 
     /**
      * Instagram Reels 다운로드
-     * 
-     * 참고: yt-dlp를 사용하여 다운로드를 시도합니다.
-     * Instagram의 정책 변경에 따라 작동하지 않을 수 있습니다.
      */
     async download(
         url: string,
@@ -53,6 +61,7 @@ export class InstagramDownloader {
         const {
             outputDir = this.defaultOutputDir,
             format = 'mp4',
+            quality = 'best',
             maxRetries = 3,
         } = options;
 
@@ -74,18 +83,38 @@ export class InstagramDownloader {
                     format
                 );
 
-                // Instagram 다운로드는 현재 제한적으로 지원됩니다
-                // 실제 구현에서는 yt-dlp 또는 다른 서드파티 라이브러리를 사용해야 합니다
+                // 절대 경로로 변환
+                const absoluteOutputDir = path.resolve(outputDir);
+                const outputPath = path.join(absoluteOutputDir, fileName);
+
+                // 파일명에서 확장자 제거 (yt-dlp가 자동으로 추가)
+                const outputTemplate = outputPath.replace(/\.mp4$/, '');
+
+                // yt-dlp 명령어 실행 (Instagram은 단순 best 포맷 사용)
+                const command = `python -m yt_dlp --format "best[ext=mp4]/best" -o "${outputTemplate}.%(ext)s" --no-playlist --no-warnings "${url}"`;
+
+                console.log('Instagram 다운로드 명령어:', command);
+                const { stdout, stderr } = await execAsync(command);
+                console.log('yt-dlp stdout:', stdout);
+                if (stderr) console.log('yt-dlp stderr:', stderr);
+
+                // 다운로드 완료 후 파일 크기 확인
+                const fileSize = await getFileSize(outputPath);
+                console.log('파일 크기:', fileSize, '경로:', outputPath);
 
                 return {
-                    success: false,
-                    error: 'Instagram Reels 다운로드는 현재 개발 중입니다. Instagram의 API 제한으로 인해 제한적으로 지원됩니다.',
+                    success: true,
+                    filePath: outputPath,
+                    fileName,
+                    fileSize,
+                    duration: metadata.duration,
                 };
             } catch (error) {
                 lastError = error instanceof Error ? error : new Error(String(error));
                 attempt++;
 
                 if (attempt < maxRetries) {
+                    // 재시도 전 대기 (exponential backoff)
                     await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
                 }
             }
@@ -93,7 +122,7 @@ export class InstagramDownloader {
 
         return {
             success: false,
-            error: `다운로드 실패 (${maxRetries}번 시도): ${lastError?.message || '알 수 없는 오류'}`,
+            error: `Instagram Reels 다운로드 실패 (${maxRetries}번 시도): ${lastError?.message || '알 수 없는 오류'}. Instagram의 정책으로 인해 다운로드가 제한될 수 있습니다.`,
         };
     }
 }

@@ -126,17 +126,19 @@ export class YouTubeDownloader {
 
     /**
      * 품질에 따른 포맷 문자열 생성
+     * ffmpeg 없이도 작동하도록 이미 병합된 포맷 우선
      */
     private getFormatString(quality: string): string {
         switch (quality) {
             case 'best':
-                return 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best';
+                // 이미 병합된 포맷 우선, 없으면 별도 다운로드 후 병합
+                return 'best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best';
             case 'high':
-                return 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best';
+                return 'best[height<=1080][ext=mp4]/bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]';
             case 'medium':
-                return 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best';
+                return 'best[height<=720][ext=mp4]/bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]';
             case 'low':
-                return 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best';
+                return 'best[height<=480][ext=mp4]/bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]';
             default:
                 return 'best[ext=mp4]/best';
         }
