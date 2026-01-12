@@ -42,9 +42,11 @@ yarn-error.log*
 
 # 임시 다운로드 파일
 /tmp
-/downloads
-*.mp4
-*.webm
+
+# 다운로드된 비디오 파일 (폴더는 유지, 파일만 제외)
+downloads/*.mp4
+downloads/*.webm
+downloads/*.mkv
 
 # TypeScript
 *.tsbuildinfo

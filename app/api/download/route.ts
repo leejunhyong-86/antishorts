@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import VideoDownloader from '@/lib/downloader';
 import { videoDb } from '@/lib/supabase/database';
-import { storage } from '@/lib/supabase/storage';
 import { validateURL } from '@/lib/url-validator';
 import type { VideoInsert } from '@/lib/supabase/client';
-import { deleteFile } from '@/lib/downloader/file-utils';
 
 export async function POST(request: NextRequest) {
     try {
@@ -64,40 +62,16 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        console.log('Storage 업로드 시작...');
+        console.log('로컬 파일 경로 생성 중...');
 
-        // Supabase Storage에 업로드
+        // 로컬 파일을 /videos 경로로 제공
         let fileUrl: string | null = null;
-        let thumbnailUrl: string | null = null;
 
-        if (downloadResult.filePath) {
-            const storagePath = storage.generateStoragePath(
-                validation.platform!,
-                downloadResult.fileName!,
-                'video',
-                metadata.videoId
-            );
-
-            console.log('Storage 경로:', storagePath);
-
-            fileUrl = await storage.uploadFile(downloadResult.filePath, storagePath);
-            console.log('업로드된 파일 URL:', fileUrl);
-
-            if (!fileUrl) {
-                console.error('Storage 업로드 실패 - URL이 null입니다');
-                return NextResponse.json(
-                    { error: 'Storage 업로드 실패. 파일을 저장할 수 없습니다.' },
-                    { status: 500 }
-                );
-            }
-
-            // Storage 업로드 성공 후에만 로컬 임시 파일 삭제
-            const deleted = await deleteFile(downloadResult.filePath);
-            if (deleted) {
-                console.log('로컬 임시 파일 삭제 완료:', downloadResult.filePath);
-            } else {
-                console.log('로컬 임시 파일 삭제 실패 (무시):', downloadResult.filePath);
-            }
+        if (downloadResult.fileName) {
+            // /videos/파일명 형식으로 URL 생성
+            fileUrl = `/videos/${downloadResult.fileName}`;
+            console.log('파일 URL:', fileUrl);
+            console.log('파일은 downloads/ 폴더에 유지됩니다');
         }
 
         console.log('데이터베이스 저장 중...');
@@ -133,16 +107,6 @@ export async function POST(request: NextRequest) {
 
         if (!savedVideo) {
             console.error('데이터베이스 저장 실패');
-            
-            // 데이터베이스 저장 실패 시 업로드된 파일 롤백
-            if (fileUrl) {
-                const filePath = storage.extractPathFromUrl(fileUrl);
-                if (filePath) {
-                    await storage.deleteFile(filePath).catch(() => {});
-                    console.log('업로드된 파일 롤백 완료');
-                }
-            }
-            
             return NextResponse.json(
                 { error: '데이터베이스 저장 실패' },
                 { status: 500 }
@@ -158,12 +122,6 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error('다운로드 API 오류:', error);
         console.error('오류 스택:', error instanceof Error ? error.stack : 'No stack trace');
-        
-        // 예외 발생 시 다운로드된 파일 정리 시도
-        try {
-            const response = await fetch(`${request.url}?cleanup=true`);
-        } catch {}
-        
         return NextResponse.json(
             {
                 error: '서버 오류가 발생했습니다.',

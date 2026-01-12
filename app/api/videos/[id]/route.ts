@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { videoDb } from '@/lib/supabase/database';
-import { storage } from '@/lib/supabase/storage';
+import path from 'path';
+import { deleteFile } from '@/lib/downloader/file-utils';
 
 interface RouteParams {
     params: Promise<{
@@ -50,11 +51,15 @@ export async function DELETE(
             );
         }
 
-        // Storage에서 파일 삭제
+        // 로컬 파일 삭제
         if (video.file_url) {
-            const filePath = storage.extractPathFromUrl(video.file_url);
-            if (filePath) {
-                await storage.deleteFile(filePath);
+            const fileName = video.file_url.replace('/videos/', '');
+            const localPath = path.join(process.cwd(), 'downloads', fileName);
+            const deleted = await deleteFile(localPath);
+            if (deleted) {
+                console.log('로컬 파일 삭제 완료:', localPath);
+            } else {
+                console.log('로컬 파일 삭제 실패 (무시):', localPath);
             }
         }
 

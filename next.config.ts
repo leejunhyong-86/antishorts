@@ -8,6 +8,14 @@ const nextConfig = {
             },
         ],
     },
+    async rewrites() {
+        return [
+            {
+                source: '/videos/:path*',
+                destination: '/downloads/:path*',
+            },
+        ];
+    },
 };
 
 export default nextConfig;
