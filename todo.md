@@ -15,11 +15,11 @@
 - [x] .gitignore 설정
 
 ### 🔗 URL 처리 및 검증
-- [ ] URL 파싱 함수 구현
-- [ ] YouTube Shorts URL 패턴 매칭
-- [ ] Instagram Reels URL 패턴 매칭
-- [ ] URL 유효성 검증
-- [ ] 플랫폼 자동 감지 로직
+- [x] URL 파싱 함수 구현
+- [x] YouTube Shorts URL 패턴 매칭
+- [x] Instagram Reels URL 패턴 매칭
+- [x] URL 유효성 검증
+- [x] 플랫폼 자동 감지 로직
 
 ### ⬇️ 다운로드 기능
 - [ ] yt-dlp 통합 (YouTube Shorts)
