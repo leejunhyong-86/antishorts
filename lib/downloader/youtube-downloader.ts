@@ -38,7 +38,7 @@ export class YouTubeDownloader {
                 description: info.description,
                 uploader: info.uploader || info.channel,
                 uploadDate: info.upload_date,
-                duration: info.duration,
+                duration: info.duration ? Math.floor(info.duration) : undefined,
                 thumbnailUrl: info.thumbnail,
                 videoId: info.id,
                 platform: 'youtube',
