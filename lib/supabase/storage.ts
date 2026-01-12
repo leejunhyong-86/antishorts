@@ -149,18 +149,30 @@ export class StorageManager {
 
     /**
      * 저장 경로 생성 (플랫폼/날짜/파일명)
+     * 파일명을 안전한 영문/숫자 기반으로 생성
      */
     generateStoragePath(
         platform: string,
         fileName: string,
-        type: 'video' | 'thumbnail' = 'video'
+        type: 'video' | 'thumbnail' = 'video',
+        videoId?: string
     ): string {
         const date = new Date();
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
+        
+        // 파일 확장자 추출
+        const ext = fileName.split('.').pop() || 'mp4';
+        
+        // 안전한 파일명 생성 (타임스탬프 + videoId + 랜덤)
+        const timestamp = Date.now();
+        const randomStr = Math.random().toString(36).substring(2, 8);
+        const safeFileName = videoId 
+            ? `${timestamp}_${videoId}_${randomStr}.${ext}`
+            : `${timestamp}_${randomStr}.${ext}`;
 
-        return `${platform}/${year}/${month}/${day}/${type}/${fileName}`;
+        return `${platform}/${year}/${month}/${day}/${type}/${safeFileName}`;
     }
 }
 

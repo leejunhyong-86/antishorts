@@ -74,7 +74,8 @@ export async function POST(request: NextRequest) {
             const storagePath = storage.generateStoragePath(
                 validation.platform!,
                 downloadResult.fileName!,
-                'video'
+                'video',
+                metadata.videoId
             );
 
             console.log('Storage 경로:', storagePath);
