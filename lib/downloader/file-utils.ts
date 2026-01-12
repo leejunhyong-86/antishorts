@@ -8,11 +8,13 @@ import { existsSync } from 'fs';
  */
 export function sanitizeFileName(fileName: string): string {
     return fileName
-        .replace(/[<>:"/\\|?*\x00-\x1F#%&{}[\]@!$'`~+=]/g, '') // 특수문자 제거 (# 포함)
+        // 모든 특수문자 제거 (한글, 영문, 숫자, 언더스코어, 하이픈, 점만 허용)
+        .replace(/[^\w\s\u3131-\uD79D.-]/g, '') // 한글, 영문, 숫자, 언더스코어, 하이픈, 점만 유지
         .replace(/\s+/g, '_') // 공백을 언더스코어로
         .replace(/_{2,}/g, '_') // 연속된 언더스코어 하나로
         .replace(/^_+|_+$/g, '') // 앞뒤 언더스코어 제거
-        .replace(/\.+/g, '.') // 연속된 점 제거
+        .replace(/\.+/g, '.') // 연속된 점 하나로
+        .replace(/^\.+|\.([^.]+)$/, '$1') // 앞의 점 제거, 마지막 확장자만 유지
         .substring(0, 200); // 최대 길이 제한
 }
 
