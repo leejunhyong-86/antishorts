@@ -70,33 +70,33 @@ export async function POST(request: NextRequest) {
         let fileUrl: string | null = null;
         let thumbnailUrl: string | null = null;
 
-        try {
-            if (downloadResult.filePath) {
-                const storagePath = storage.generateStoragePath(
-                    validation.platform!,
-                    downloadResult.fileName!,
-                    'video'
-                );
-
-                console.log('Storage 경로:', storagePath);
-
-                fileUrl = await storage.uploadFile(downloadResult.filePath, storagePath);
-                console.log('업로드된 파일 URL:', fileUrl);
-
-                // Storage 업로드 완료 후 로컬 임시 파일 삭제
-                await deleteFile(downloadResult.filePath);
-                console.log('로컬 임시 파일 삭제 완료:', downloadResult.filePath);
-            }
-        } catch (uploadError) {
-            console.error('Storage 업로드 또는 파일 삭제 오류:', uploadError);
-            // 업로드 실패 시에도 로컬 파일 정리 시도
-            if (downloadResult.filePath) {
-                await deleteFile(downloadResult.filePath).catch(() => {});
-            }
-            return NextResponse.json(
-                { error: 'Storage 업로드 실패' },
-                { status: 500 }
+        if (downloadResult.filePath) {
+            const storagePath = storage.generateStoragePath(
+                validation.platform!,
+                downloadResult.fileName!,
+                'video'
             );
+
+            console.log('Storage 경로:', storagePath);
+
+            fileUrl = await storage.uploadFile(downloadResult.filePath, storagePath);
+            console.log('업로드된 파일 URL:', fileUrl);
+
+            if (!fileUrl) {
+                console.error('Storage 업로드 실패 - URL이 null입니다');
+                return NextResponse.json(
+                    { error: 'Storage 업로드 실패. 파일을 저장할 수 없습니다.' },
+                    { status: 500 }
+                );
+            }
+
+            // Storage 업로드 성공 후에만 로컬 임시 파일 삭제
+            const deleted = await deleteFile(downloadResult.filePath);
+            if (deleted) {
+                console.log('로컬 임시 파일 삭제 완료:', downloadResult.filePath);
+            } else {
+                console.log('로컬 임시 파일 삭제 실패 (무시):', downloadResult.filePath);
+            }
         }
 
         console.log('데이터베이스 저장 중...');
@@ -118,6 +118,15 @@ export async function POST(request: NextRequest) {
             upload_date: metadata.uploadDate,
             download_quality: 'best',
         };
+
+        // file_url이 필수인지 확인 (비디오 재생을 위해)
+        if (!videoData.file_url) {
+            console.error('file_url이 null입니다. 데이터베이스에 저장하지 않습니다.');
+            return NextResponse.json(
+                { error: 'Storage 업로드가 필요합니다. file_url이 없습니다.' },
+                { status: 500 }
+            );
+        }
 
         const savedVideo = await videoDb.addVideo(videoData);
 
