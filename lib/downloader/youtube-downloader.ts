@@ -1,27 +1,26 @@
-import YTDlpWrap from 'yt-dlp-wrap';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import path from 'path';
 import {
     DownloadResult,
     DownloadOptions,
     VideoMetadata,
-    DownloadProgress
 } from './types';
 import {
     generateUniqueFileName,
     ensureDir,
     getFileSize,
-    sanitizeFileName
 } from './file-utils';
 
+const execAsync = promisify(exec);
+
 /**
- * YouTube 다운로더 클래스
+ * YouTube 다운로더 클래스 (Python yt-dlp 사용)
  */
 export class YouTubeDownloader {
-    private ytDlp: YTDlpWrap;
     private defaultOutputDir: string;
 
     constructor(outputDir: string = './downloads') {
-        this.ytDlp = new YTDlpWrap();
         this.defaultOutputDir = outputDir;
     }
 
@@ -30,7 +29,9 @@ export class YouTubeDownloader {
      */
     async getMetadata(url: string): Promise<VideoMetadata> {
         try {
-            const info = await this.ytDlp.getVideoInfo(url);
+            const command = `python -m yt_dlp --dump-json --no-warnings "${url}"`;
+            const { stdout } = await execAsync(command);
+            const info = JSON.parse(stdout);
 
             return {
                 title: info.title || 'Untitled',
@@ -59,7 +60,6 @@ export class YouTubeDownloader {
             format = 'mp4',
             quality = 'best',
             maxRetries = 3,
-            onProgress,
         } = options;
 
         let attempt = 0;
@@ -79,26 +79,26 @@ export class YouTubeDownloader {
                     metadata.title,
                     format
                 );
-                const outputPath = path.join(outputDir, fileName);
 
-                // yt-dlp 옵션 설정
-                const ytDlpArgs = [
-                    '--format', this.getFormatString(quality),
-                    '--merge-output-format', format,
-                    '--output', outputPath,
-                    '--no-playlist',
-                    '--no-warnings',
-                    url,
-                ];
+                // 절대 경로로 변환
+                const absoluteOutputDir = path.resolve(outputDir);
+                const outputPath = path.join(absoluteOutputDir, fileName);
 
-                // 진행률 추적
-                let lastProgress = 0;
-                const progressRegex = /(\d+\.?\d*)%/;
+                // 파일명에서 확장자 제거 (yt-dlp가 자동으로 추가)
+                const outputTemplate = outputPath.replace(/\.mp4$/, '');
 
-                await this.ytDlp.execPromise(ytDlpArgs);
+                // yt-dlp 명령어 실행
+                const formatString = this.getFormatString(quality);
+                const command = `python -m yt_dlp --format "${formatString}" --merge-output-format ${format} -o "${outputTemplate}.%(ext)s" --no-playlist --no-warnings "${url}"`;
+
+                console.log('실행 명령어:', command);
+                const { stdout, stderr } = await execAsync(command);
+                console.log('yt-dlp stdout:', stdout);
+                if (stderr) console.log('yt-dlp stderr:', stderr);
 
                 // 다운로드 완료 후 파일 크기 확인
                 const fileSize = await getFileSize(outputPath);
+                console.log('파일 크기:', fileSize, '경로:', outputPath);
 
                 return {
                     success: true,
