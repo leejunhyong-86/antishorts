@@ -31,11 +31,12 @@ const YOUTUBE_SHORTS_PATTERNS = [
  * Instagram Reels URL 패턴
  * 지원 형식:
  * - https://www.instagram.com/reel/REEL_ID/
+ * - https://www.instagram.com/reels/REEL_ID/
  * - https://instagram.com/reel/REEL_ID/
  * - https://www.instagram.com/p/POST_ID/ (일반 포스트이지만 Reels일 수 있음)
  */
 const INSTAGRAM_REELS_PATTERNS = [
-    /^https?:\/\/(?:www\.)?instagram\.com\/reel\/([a-zA-Z0-9_-]+)\/?(?:\?.*)?$/,
+    /^https?:\/\/(?:www\.)?instagram\.com\/reels?\/([a-zA-Z0-9_-]+)\/?(?:\?.*)?$/,
     /^https?:\/\/(?:www\.)?instagram\.com\/p\/([a-zA-Z0-9_-]+)\/?(?:\?.*)?$/,
 ];
 
